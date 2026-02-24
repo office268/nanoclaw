@@ -35,19 +35,21 @@ for i in $(seq 1 60); do
 done
 
 # ---------------------------------------------------------------------------
-# 2. Build the nanoclaw-agent container image
+# 2. Build the nanoclaw-agent container image IN THE BACKGROUND so that
+#    Node.js can start immediately and answer Railway's healthcheck.
 #    Set SKIP_CONTAINER_BUILD=1 to skip (e.g., when pulling from a registry).
 # ---------------------------------------------------------------------------
 if [ -z "$SKIP_CONTAINER_BUILD" ]; then
-  echo "[entrypoint] Building nanoclaw-agent image (this may take a few minutes on first deploy)..."
-  cd /app && ./container/build.sh
-  echo "[entrypoint] Agent image built successfully."
+  echo "[entrypoint] Building nanoclaw-agent image in background (this may take a few minutes on first deploy)..."
+  (cd /app && ./container/build.sh && echo "[entrypoint] Agent image built successfully.") &
 else
   echo "[entrypoint] Skipping container build (SKIP_CONTAINER_BUILD is set)."
 fi
 
 # ---------------------------------------------------------------------------
-# 3. Start the NanoClaw Node.js application
+# 3. Start the NanoClaw Node.js application immediately.
+#    The /health endpoint becomes available right away; agent tasks that
+#    arrive before the image is ready will fail gracefully and can be retried.
 # ---------------------------------------------------------------------------
 echo "[entrypoint] Starting NanoClaw..."
 cd /app
