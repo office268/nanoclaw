@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Dockerfile for Railway deployment.
 # Runs the NanoClaw orchestrator and agent-runner directly as Node.js processes.
 # No Docker-in-Docker required — agents run as child processes of the main app.
@@ -18,9 +19,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install main app dependencies first (layer cache)
+# Install main app dependencies — cache npm registry between builds
 COPY package*.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 # Copy source and build TypeScript
 COPY . .
@@ -28,7 +30,9 @@ RUN npm run build
 
 # Build the agent-runner (compiled in-place; runs as a child process)
 WORKDIR /app/container/agent-runner
-RUN npm install && npm run build
+RUN --mount=type=cache,target=/root/.npm \
+    npm install
+RUN npm run build
 
 WORKDIR /app
 
